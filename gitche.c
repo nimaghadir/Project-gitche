@@ -21,6 +21,9 @@ char added_path[30][2000];
 char file_name[100];
 char parent_file[2000];
 int file_commit[50];
+char commit_time[100];
+char massage[100];
+char commit_branch[100];
 
 void find_path(char* address);
 void find_parent(char* address);
@@ -29,6 +32,7 @@ void found_branch();
 void found_username();
 void found_email();
 int found_last_commit();
+int date_compare(char* date1 , char* date2);
 int run_config(int length , char* word[]);
 int run_alias(int length , char* word[]);
 int create_branch(char* name);
@@ -44,7 +48,7 @@ int run_reset(char* address);
 int run_status();
 int run_commit(char* massage);
 int find_commits(char* address , int* a);
-
+int found_commit_info(int commit_number);
 
 void find_path(char* address) {
     strcpy(real_path , "");
@@ -160,6 +164,40 @@ int found_last_commit() {
     fclose(file);
     chdir(work_dir);
     return last_commit_id;    
+}
+
+int date_compare(char* date1 , char* date2) {
+    int day1 , day2;
+    int month1 , month2;
+    int year1 , year2;
+    int hour1 , hour2;
+    int minute1 , minute2;
+    int second1 , second2;
+    sscanf(date1 , "%d/%d/%d %d:%d:%d" , &day1 , &month1 , &year1 , &hour1 , &minute1 , &second1);
+    sscanf(date2 , "%d/%d/%d %d:%d:%d" , &day2 , &month2 , &year2 , &hour2 , &minute2 , &second2);
+    if(year1 > year2) return 1;
+    else if(year1 < year2) return -1;
+    else {
+        if(month1 > month2) return 1;
+        else if(month1 < month2) return -1;
+        else {
+            if(day1 > day2) return 1;
+            else if(day1 < day1) return -1;
+            else {
+                if(hour1 > hour2) return 1;
+                else if(hour1 < hour2) return -1;
+                else {
+                    if(minute1 > minute2) return 1;
+                    else if(minute1 < minute2) return -1;
+                    else {
+                        if(second1 > second2) return 1;
+                        else if(second1 < second2) return -1;
+                        else return 0;
+                    }
+                }
+            }
+        }
+    }
 }
 
 int run_config(int length , char* word[]) {
@@ -309,6 +347,8 @@ int run_init() {
         chdir("./config");
         FILE* file = fopen("./last_commit_id.txt", "w");
         fprintf(file , "%d" , 0);
+        fclose(file);
+        file = fopen("./shortcuts.txt", "w");
         fclose(file);
         create_branch("master");
         file = fopen("./branch.txt", "w");
@@ -742,6 +782,9 @@ int run_commit(char* massage) {
         file = fopen("./massage.txt", "w");
         fprintf(file , "%s" , massage);
         fclose(file);
+        file = fopen("./number-of-stage.txt", "w");
+        fprintf(file , "%d" , num_stage);
+        fclose(file);
         file = fopen("./time.txt", "w");
         stat("./time.txt" , &attrib);
         char help[100];
@@ -809,7 +852,33 @@ int find_commits(char* address , int* a) {
     if((*a) != 0) return 1;
 }
 
-
+int found_commit_info(int commit_number) {
+    char work_dir[2000];
+    getcwd(work_dir , sizeof(work_dir));
+    found_gitche();
+    chdir(gitche);
+    char commit_name[10];
+    sprintf(commit_name , "%d" , commit_number);
+    chdir(commit_name);
+    FILE* file = fopen("./information/time.txt", "r");
+    fgets(commit_time , 100 , file);
+    fclose(file);
+    file = fopen("./information/massage.txt", "r");
+    fgets(massage , 100 , file);
+    fclose(file);
+    file = fopen("./information/username.txt", "r");
+    fgets(username , 100 , file);
+    fclose(file);
+    file = fopen("./information/branch.txt", "r");
+    fgets(commit_branch , 100 , file);
+    fclose(file);
+    int n;
+    file = fopen("./information/number-of-stage.txt", "r");
+    fscanf(file , "%d" , &n);
+    fclose(file);
+    chdir(work_dir);
+    return n;
+}
 
 int main(int argc , char* argv[]) {
     if(argc == 1) {
@@ -828,6 +897,7 @@ int main(int argc , char* argv[]) {
             if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
             if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
             if(strncmp(argv[n] , "gitche init" , 11) == 0) ok = 1;
+            if(strncmp(argv[n] , "gitche add" , 10) == 0) ok = 1;
             if(ok == 0) {
                 printf("\033[33mthe command is not valid!\033[0m");
                 return 1;
@@ -1032,7 +1102,31 @@ int main(int argc , char* argv[]) {
             return 0;
         }
         else if(strcmp(argv[2] , "-s") == 0) {
-
+            char work_dir[2000];
+            getcwd(work_dir , sizeof(work_dir));
+            found_gitche();
+            chdir(gitche);
+            FILE* file = fopen("./config/shortcuts.txt", "r");
+            char shortcut[100];
+            char sh_mass[100];
+            char line[30];
+            int ok = 0;
+            while(1) {
+                fgets(shortcut , 100 , file);
+                fgets(sh_mass , 100 , file);
+                fgets(line , 30 , file);
+                if(feof(file)) break;
+                shortcut[strlen(shortcut)-1] = '\0';
+                sh_mass[strlen(sh_mass)-1] = '\0';
+                if(strcmp(argv[3] , shortcut) == 0) {
+                    ok = 1;
+                    break;
+                }
+            }
+            fclose(file);
+            if(ok == 0) printf("\033[33mthe shortcut name does not exist!\033[0m");
+            else run_commit(sh_mass);
+            chdir(work_dir);
         }
         else {
             printf("\033[33mthe comand is not valid!\033[0m");
@@ -1040,16 +1134,284 @@ int main(int argc , char* argv[]) {
         }
     }
     else if(strcmp(argv[1] , "set") == 0) {
-
+        if(argc != 6) printf("\033[33mplease enter a valid command!\033[0m");
+        else if((strcmp(argv[2] , "-m") != 0) || (strcmp(argv[4] , "-s") != 0)) printf("\033[33mplease enter a valid command!\033[0m");
+        else {
+            char work_dir[2000];
+            getcwd(work_dir , sizeof(work_dir));
+            found_gitche();
+            chdir(gitche);
+            FILE* file = fopen("./config/shortcuts.txt", "r");
+            char shortcut[100];
+            char sh_mass[100];
+            char line[30];
+            while(1) {
+                fgets(shortcut , 100 , file);
+                fgets(sh_mass , 100 , file);
+                fgets(line , 30 , file);
+                if(feof(file)) break;
+                shortcut[strlen(shortcut)-1] = '\0';
+                if(strcmp(argv[5] , shortcut) == 0) {
+                    printf("\033[33mthe shortcut name is already exist!\033[0m");
+                    fclose(file);
+                    return 1;
+                }
+            }
+            fclose(file);
+            file = fopen("./config/shortcuts.txt", "a");
+            fprintf(file , "%s\n" , argv[5]);
+            fprintf(file , "%s\n" , argv[3]);
+            fprintf(file , "--------------------\n");
+            chdir(work_dir);
+        }
+        return 0;
     }
     else if(strcmp(argv[1] , "replace") == 0) {
-        
+        if(argc != 6) printf("\033[33mplease enter a valid command!\033[0m");
+        else if((strcmp(argv[2] , "-m") != 0) || (strcmp(argv[4] , "-s") != 0)) printf("\033[33mplease enter a valid command!\033[0m");
+        else {
+            char work_dir[2000];
+            getcwd(work_dir , sizeof(work_dir));
+            found_gitche();
+            chdir(gitche);
+            FILE* file = fopen("./config/shortcuts.txt", "r");
+            char shortcut[100];
+            char sh_mass[100];
+            char line[30];
+            int ok = 0;
+            while(1) {
+                fgets(shortcut , 100 , file);
+                fgets(sh_mass , 100 , file);
+                fgets(line , 30 , file);
+                if(feof(file)) break;
+                shortcut[strlen(shortcut)-1] = '\0';
+                if(strcmp(argv[5] , shortcut) == 0) {
+                    ok = 1;
+                    break;
+                }
+            }
+            fclose(file);
+            if(ok == 0) printf("\033[33mthe shortcut name does not exist!\033[0m");
+            else {
+                file = fopen("./config/shortcuts.txt", "r");
+                FILE* help = fopen("./config/tempsh.txt", "w");
+                while(1) {
+                    fgets(shortcut , 100 , file);
+                    fputs(shortcut , help);
+                    fgets(sh_mass , 100 , file);
+                    fgets(line , 30 , file);
+                    if(feof(file)) break;
+                    shortcut[strlen(shortcut)-1] = '\0';
+                    if(strcmp(argv[5] , shortcut) == 0) {
+                        fprintf(help , "%s\n" , argv[3]);
+                    }
+                    else fputs(sh_mass , help);
+                    fputs(line , help);
+                }
+                fclose(file);
+                fclose(help);
+                file = fopen("./config/shortcuts.txt", "w");
+                help = fopen("./config/tempsh.txt", "r");
+                while(1) {
+                    fgets(shortcut , 100 , help);
+                    fgets(sh_mass , 100 , help);
+                    fgets(line , 30 , help);
+                    if(feof(help)) break;
+                    fputs(shortcut , file);
+                    fputs(sh_mass , file);
+                    fputs(line , file);
+                }
+                fclose(file);
+                fclose(help);
+                remove("./config/tempsh.txt");
+            }
+            chdir(work_dir);
+        }
+        return 0;
     }
     else if(strcmp(argv[1] , "remove") == 0) {
-        
+        if(argc != 4) printf("\033[33mplease enter a valid command!\033[0m");
+        else if((strcmp(argv[2] , "-s") != 0)) printf("\033[33mplease enter a valid command!\033[0m");
+        else {
+            char work_dir[2000];
+            getcwd(work_dir , sizeof(work_dir));
+            found_gitche();
+            chdir(gitche);
+            FILE* file = fopen("./config/shortcuts.txt", "r");
+            char shortcut[100];
+            char sh_mass[100];
+            char line[30];
+            int ok = 0;
+            while(1) {
+                fgets(shortcut , 100 , file);
+                fgets(sh_mass , 100 , file);
+                fgets(line , 30 , file);
+                if(feof(file)) break;
+                shortcut[strlen(shortcut)-1] = '\0';
+                if(strcmp(argv[3] , shortcut) == 0) {
+                    ok = 1;
+                    break;
+                }
+            }
+            fclose(file);
+            if(ok == 0) printf("\033[33mthe shortcut name does not exist!\033[0m");
+            else {
+                file = fopen("./config/shortcuts.txt", "r");
+                FILE* help = fopen("./config/tempsh.txt", "w");
+                while(1) {
+                    fgets(shortcut , 100 , file);
+                    fgets(sh_mass , 100 , file);
+                    fgets(line , 30 , file);
+                    if(feof(file)) break;
+                    shortcut[strlen(shortcut)-1] = '\0';
+                    if(strcmp(argv[3] , shortcut) != 0) {
+                        fprintf(help , "%s\n" , shortcut);
+                        fprintf(help , "%s" , sh_mass);
+                        fprintf(help , "%s" , line);
+                    }
+                }
+                fclose(file);
+                fclose(help);
+                file = fopen("./config/shortcuts.txt", "w");
+                help = fopen("./config/tempsh.txt", "r");
+                while(1) {
+                    fgets(shortcut , 100 , help);
+                    fgets(sh_mass , 100 , help);
+                    fgets(line , 30 , help);
+                    if(feof(help)) break;
+                    fprintf(file , "%s" , shortcut);
+                    fprintf(file , "%s" , sh_mass);
+                    fprintf(file , "%s" , line);
+                }
+                fclose(file);
+                fclose(help);
+                remove("./config/tempsh.txt");
+            }
+            chdir(work_dir);
+        }
+        return 0;
     }
     else if(strcmp(argv[1] , "log") == 0) {
-
+        int last_commit = found_last_commit();
+        if(argc == 2) {
+            for(int i=last_commit ; i>0 ; i--) {
+                int x = found_commit_info(i);
+                printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                printf("\033[35mmassage:  \033[36m%s\n", massage);
+                printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                printf("\033[0m--------------------------------------------------\n");
+            }
+        }
+        else if(argc == 4) {
+            if(strcmp(argv[2] , "-n") == 0) {
+                int num;
+                sscanf(argv[3] , "%d" , &num);
+                int max = 0;
+                if(num < last_commit) max = last_commit - num;
+                for(int i=last_commit ; i>max ; i--) {
+                    int x = found_commit_info(i);
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+            }
+            else if(strcmp(argv[2] , "-branch") == 0) {
+                int ok = 0;
+                for(int i=last_commit ; i>0 ; i--) {
+                    int x = found_commit_info(i);
+                    if(strcmp(commit_branch , argv[3]) != 0) continue;
+                    ok = 1;
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+                if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+            }
+            else if(strcmp(argv[2] , "-author") == 0) {
+                int ok = 0;
+                for(int i=last_commit ; i>0 ; i--) {
+                    int x = found_commit_info(i);
+                    if(strcmp(username , argv[3]) != 0) continue;
+                    ok = 1;
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+                if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+            }
+            else if(strcmp(argv[2] , "-since") == 0) {
+                int ok = 0;
+                for(int i=last_commit ; i>0 ; i--) {
+                    int x = found_commit_info(i);
+                    if(date_compare(commit_time , argv[3]) == (-1)) continue;
+                    ok = 1;
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+                if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+            }
+            else if(strcmp(argv[2] , "-before") == 0) {
+                int ok = 0;
+                for(int i=last_commit ; i>0 ; i--) {
+                    int x = found_commit_info(i);
+                    if(date_compare(commit_time , argv[3]) == 1) continue;
+                    ok = 1;
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+                if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+            }
+            else if(strcmp(argv[2] , "-search") == 0) {
+                int ok = 0;
+                for(int i=last_commit ; i>0 ; i--) {
+                    int x = found_commit_info(i);
+                    if(strstr(massage , argv[3]) == NULL) continue;
+                    ok = 1;
+                    printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                    printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                    printf("\033[35mmassage:  \033[36m%s\n", massage);
+                    printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                    printf("\033[0m--------------------------------------------------\n");
+                }
+                if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+            }
+        }
+        else if(strcmp(argv[2] , "-search") == 0) {
+            int ok = 0;
+            for(int i=last_commit ; i>0 ; i--) {
+                int x = found_commit_info(i);
+                int show = 0;
+                for(int j=3 ; j<argc ; j++) {
+                    if(strstr(massage , argv[j]) != NULL) {
+                        show = 1;
+                        break;
+                    }
+                }
+                if(show == 0) continue;
+                ok = 1;
+                printf("\033[35mcommit id:\033[36m%03d  ----  \033[0mon branch \033[36m%s\n", i , commit_branch);
+                printf("\033[36m%02d \033[0mfile(s) commited  \033[35muser: \033[36m%s\n", x , username);
+                printf("\033[35mmassage:  \033[36m%s\n", massage);
+                printf("\033[35mtime:     \033[36m%s\n", commit_time);
+                printf("\033[0m--------------------------------------------------\n");
+            }
+            if(ok == 0) printf("\033[33mthere is no commit with the given condition!");
+        }
+        else printf("\033[33mplease enter a valid command!\033[0m");
+        return 0;
     }
     else if(strcmp(argv[1] , "branch") == 0) {
 
@@ -1106,10 +1468,12 @@ int main(int argc , char* argv[]) {
                         for(int i=0 ; i<100 ; i++) {
                             word[i] = (char*) malloc(100 * sizeof(char));
                         }
+                        char god[100];
                         while(1) {
-                            fscanf(help , "%s" , word[number]);
-                            number++;
+                            fscanf(help , "%s" , god);
                             if(feof(help)) break;
+                            strcpy(word[number] , god);
+                            number++;
                         }
                         fclose(help);
                         remove("C:\\global\\help.txt");
