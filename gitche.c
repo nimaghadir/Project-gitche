@@ -329,6 +329,13 @@ int create_branch(char* name) {
     FILE* file = fopen("./status.txt", "w");
     fclose(file);
     file = fopen("./head.txt", "w");
+    fprintf(file , "%d" , 0);
+    fclose(file);
+    file = fopen("./last_add.txt", "w");
+    fclose(file);
+    chdir(gitche);
+    file = fopen("./config/branch-names.txt", "a");
+    fprintf(file , "%s\n" , name);
     fclose(file);
     chdir(work_dir);
     return 0;
@@ -337,7 +344,7 @@ int create_branch(char* name) {
 int run_init() {
     int exist = found_gitche();
     if(exist == 1) {
-        printf("You have already initialized!");
+        printf("\033[32mYou have already initialized!\033[0m");
         return 0;
     }
     if(exist == 0) {
@@ -353,6 +360,9 @@ int run_init() {
         create_branch("master");
         file = fopen("./branch.txt", "w");
         fprintf(file , "master");
+        fclose(file);
+        file = fopen("./branch-names.txt", "w");
+        fprintf(file , "master\n");
         fclose(file);
         chdir("..");
         char work_dir[2000];
@@ -652,15 +662,19 @@ int run_status() {
                         }
                     }
                     fclose(help);
-                    if(strcmp(last_add , last_change) == 0) {
-                        if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-NM\n", file->d_name);
-                        if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+NM\n", file->d_name);
-                    }
-                    else {
+                    if(strcmp(last_add , last_change) != 0) {
                         if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-M\n", file->d_name);
                         if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+M\n", file->d_name);
                     }
                 }
+            }
+            chdir(work_dir);
+        }
+        else if(file->d_type == DT_DIR) {
+            if((strcmp(file->d_name , ".gitche") != 0) && (strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0)) {
+                chdir(file->d_name);
+                run_status();
+                chdir("..");
             }
         }
     }
@@ -823,6 +837,11 @@ int run_commit(char* massage) {
         printf("\033[36m      id: \033[35m%d\n", last_commit_id);
         printf("\033[36m    time: \033[35m%s\n", help);
         printf("\033[36m massage: \033[35m%s\n", massage);
+        chdir(gitche);
+        chdir(branch);
+        FILE* komaki = fopen("head.txt", "w");
+        fprintf(komaki , "%d" , last_commit_id);
+        fclose(komaki);
         chdir(work_dir);
         return 1;
     }
@@ -886,19 +905,33 @@ int main(int argc , char* argv[]) {
         return 1;
     }
     else if(strcmp(argv[1] , "config") == 0) {
-        if((strncmp(argv[2] , "alias." , 6) == 0) || (strncmp(argv[3] , "alias." , 6) == 0)) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        else if((strncmp(argv[2] , "alias." , 6) == 0) || (strncmp(argv[3] , "alias." , 6) == 0)) {
             int n = 3;
             if(strcmp(argv[2] , "-global") == 0) n = 4;
             int ok = 0;
             if(strncmp(argv[n] , "gitche config -global user.name" , 31) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche config -global user.email" , 32) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche config user.name" , 23) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche config user.email" , 24) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche init" , 11) == 0) ok = 1;
-            if(strncmp(argv[n] , "gitche add" , 10) == 0) ok = 1;
-            if(ok == 0) {
+            else if(strncmp(argv[n] , "gitche config -global user.email" , 32) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche config user.name" , 23) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche config user.email" , 24) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche config -global alias." , 28) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche init" , 11) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche add" , 10) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche reset" , 12) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche status" , 13) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche commit" , 13) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche set" , 10) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche replace" , 14) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche remove" , 13) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche log" , 10) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche branch" , 13) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche checkout" , 15) == 0) ok = 1;
+            else if(ok == 0) {
                 printf("\033[33mthe command is not valid!\033[0m");
                 return 1;
             }
@@ -915,22 +948,22 @@ int main(int argc , char* argv[]) {
     else if(strcmp(argv[1] , "add") == 0) {
         int x = found_gitche();
         if(x == 0) {
-            printf("You have to initializes first!");
+            printf("\033[31mYou have to initialize first!\033[0m");
             return 1;
         }
-        if(argc < 3) {
-            printf("please wnter a valid command!");
+        else if(argc < 3) {
+            printf("\033[33mplease enter a valid command!\033[0m");
             return 1;
         }
-        if((argc == 3)) {
+        else if((argc == 3)) {
             if((strcmp(argv[2] , "-f") == 0) || (strcmp(argv[2] , "-n") == 0)) {
-                printf("please enter a valid command!");
+                printf("\033[33mplease enter a valid command!\033[0m");
                 return 1;
             }
             else {
                 for(int i=0 ; i<strlen(argv[2]) ; i++) {
                     if(argv[2][i] == '*') {
-                        printf("there is no word with this condition!");
+                        printf("\033[33mthere is no word with this condition!\033[0m");
                         return 1;
                     }
                 }
@@ -973,7 +1006,7 @@ int main(int argc , char* argv[]) {
         }
         else if(strcmp(argv[2] , "-n") == 0) {
             if(strcmp(argv[3] , "1") != 0) {
-                printf("this command is not supported!");
+                printf("\033[31mthis command is not supported!\033[0m");
                 return 1;
             }
             else {
@@ -1046,21 +1079,21 @@ int main(int argc , char* argv[]) {
         }
     }
     else if(strcmp(argv[1] , "reset") == 0) {
-        if(argc != 3) {
-            printf("please wnter a valid command!");
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
             return 1;
         }
-        if((argc == 3)) {
-            if((strcmp(argv[2] , "-f") == 0) || (strcmp(argv[2] , "-n") == 0)) {
-                printf("this command is not supported!");
+        else if(argc < 3) {
+            printf("\033[33mplease wnter a valid command!\033[0m");
+            return 1;
+        }
+        else if((argc == 3)) {
+            if((strcmp(argv[2] , "-f") == 0)) {
+                printf("\033[33mplease enter a valid command!\033[0m");
                 return 1;
             }
-            if(strcmp(argv[2] , "-undo") == 0) {
-                int exist = found_gitche();
-                if(exist == 0) {
-                    printf("You have to initialized first!");
-                    return 1;
-                }
+            else if(strcmp(argv[2] , "-undo") == 0) {
                 char work_dir[2000];
                 getcwd(work_dir , sizeof(work_dir));
                 chdir(gitche);
@@ -1078,19 +1111,44 @@ int main(int argc , char* argv[]) {
                 return 0;
             }
             else {
-                int exist = found_gitche();
-                if(exist == 0) {
-                    printf("You have to initialized first!");
-                    return 1;
+                for(int i=0 ; i<strlen(argv[2]) ; i++) {
+                    if(argv[2][i] == '*') {
+                        printf("\033[33mthere is no word with this condition!\033[0m");
+                        return 1;
+                    }
                 }
                 run_reset(argv[2]);
                 return 0;
             }
         }
+        else if(strcmp(argv[2] , "-f") == 0) {
+            for(int i=3 ; i<argc ; i++) {
+                run_reset(argv[i]);
+            }
+            return 0;
+        }
+        else {
+            for(int i=2 ; i<argc ; i++) {
+                run_reset(argv[i]);
+            }
+            return 0;
+        }
     }
     else if(strcmp(argv[1] , "status") == 0) {
-        run_status();
-        return 0;
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        else {
+            char work_dir[2000];
+            getcwd(work_dir , 2000);
+            found_gitche();
+            chdir(gitche);
+            chdir("..");
+            run_status();
+            return 0;
+        }
     }
     else if(strcmp(argv[1] , "commit") == 0) {
         if(argc != 4) printf("\033[33mthe command is not valid!\033[0m");
@@ -1414,10 +1472,57 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "branch") == 0) {
-
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        found_branch();
+        char work_dir[2000];
+        getcwd(work_dir , 2000);
+        chdir(gitche);
+        if(argc == 3) {
+            FILE* file = fopen("./config/branch-names.txt", "r");
+            char name[100];
+            int exist = 0;
+            while(1) {
+                fgets(name , 100 , file);
+                if(feof(file)) break;
+                name[strlen(name)-1] = '\0';
+                if(strcmp(name , argv[2]) == 0) {
+                    exist = 1;
+                    break;
+                }
+            }
+            fclose(file);
+            if(exist == 1) printf("\033[31m%s \033[0mhave already exist!\033[0m");
+            else create_branch(argv[2]);
+        }
+        else if(argc == 2) {
+            FILE* file = fopen("./config/branch-names.txt", "r");
+            char name[100];
+            int exist = 0;
+            while(1) {
+                fgets(name , 100 , file);
+                if(feof(file)) break;
+                name[strlen(name)-1] = '\0';
+                if(strcmp(name , branch) == 0) printf("\033[36m*%s\033[0m\n", name);
+                else printf("\033[35m%s\033[0m\n", name);
+            }
+            fclose(file);            
+        }
+        else printf("\033[33mplease enter a valid command!\033[0m");
+        chdir(work_dir);
+        return 0;
     }
     else if(strcmp(argv[1] , "checkout") == 0) {
-
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
     }
     else {
         if(argc > 2) {
