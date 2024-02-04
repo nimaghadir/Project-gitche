@@ -7,9 +7,10 @@
 #include <time.h>
 #include <conio.h>
 
+char address_copy[2000];
 char real_path[2000];
 char gitche[2000] = "";
-char branch[100] = "master";
+char branch[100] = "";
 char username[100] = "";
 char email[100] = "";
 struct stat attrib;
@@ -24,6 +25,10 @@ int file_commit[50];
 char commit_time[100];
 char massage[100];
 char commit_branch[100];
+char tag_name[100];
+char tag_username[100];
+char tag_date[100];
+char tag_mass[100];
 
 void find_path(char* address);
 void find_parent(char* address);
@@ -49,8 +54,16 @@ int run_status();
 int run_commit(char* massage);
 int find_commits(char* address , int* a);
 int found_commit_info(int commit_number);
+int run_tag(char* tag_name , char* tag_mass , int commit_id , int writable);
+int find_tag_info(char* tag , int* a , int* b);
+void left_shift(char* a , int first , int size , int bit);
+void sort(char* a);
+int file_line(char* address);
+int file_compare(char* address1 , char* adddress2 , int start1 , int finish1 , int start2 , int finish2);
+
 
 void find_path(char* address) {
+    strcpy(address_copy , address);
     strcpy(real_path , "");
     if(address[1] == ':') strcpy(real_path , address);
     else {
@@ -66,11 +79,14 @@ void find_path(char* address) {
             strcat(real_path , token);
         }
     }
+    strcpy(address , address_copy);
 }
 
 void find_parent(char* address) {
     char token[100][100];
     char* tok;
+    char address_copy[2000];
+    strcpy(address_copy , address);
     strcpy(file_name , "");
     strcpy(parent_file , "");
     tok = strtok(address , "\\");
@@ -88,6 +104,7 @@ void find_parent(char* address) {
         strcat(parent_file , "\\");
     }
     strcat(parent_file , token[i-2]);
+    strcpy(address , address_copy);
 }
 
 int found_gitche() {
@@ -331,7 +348,7 @@ int create_branch(char* name) {
     file = fopen("./head.txt", "w");
     fprintf(file , "%d" , 0);
     fclose(file);
-    file = fopen("./last_add.txt", "w");
+    file = fopen("./last-add.txt", "w");
     fclose(file);
     chdir(gitche);
     file = fopen("./config/branch-names.txt", "a");
@@ -350,12 +367,24 @@ int run_init() {
     if(exist == 0) {
         mkdir(".gitche");
         chdir("./.gitche");
+        mkdir("./staging-area");
         mkdir("./config");
         chdir("./config");
         FILE* file = fopen("./last_commit_id.txt", "w");
         fprintf(file , "%d" , 0);
         fclose(file);
+        file = fopen("./current-commit-id", "w");
+        fprintf(file , "%d" , 0);
+        fclose(file);
         file = fopen("./shortcuts.txt", "w");
+        fclose(file);
+        file = fopen("./tags.txt", "w");
+        fclose(file);
+        file = fopen("./username.txt", "w");
+        fclose(file);
+        file = fopen("./email.txt", "w");
+        fclose(file);
+        file = fopen("./aliases.txt", "w");
         fclose(file);
         create_branch("master");
         file = fopen("./branch.txt", "w");
@@ -899,12 +928,272 @@ int found_commit_info(int commit_number) {
     return n;
 }
 
+int run_tag(char* tag_n , char* tag_massage , int commit_id , int writable) {
+    char work_dir[2000];
+    getcwd(work_dir , 2000);
+    int check_id;
+    int check_write;
+    int write;
+    int x = find_tag_info(tag_n , &check_id , &check_write);
+    if(x == 1) {
+        if(check_write == 0) printf("\033[33mtag name already exist!\033[0m");
+        else {
+            chdir(gitche);
+            char line[30];
+            FILE* file = fopen("./config/tags.txt", "r");
+            FILE* help = fopen("./config/temp_tags.txt", "w");
+            while(1) {
+                fgets(tag_name , 100 , file);
+                fscanf(file , "%d\n" , &check_id);
+                fgets(tag_username , 100 , file);
+                fgets(tag_date , 100 , file);
+                fgets(tag_mass , 100 , file);
+                fscanf(file , "%d\n" , &write);
+                fgets(line , 30 , file);
+                if(feof(file)) break;
+                fputs(tag_name , help);
+                tag_name[strlen(tag_name)-1] = '\0';
+                if(strcmp(tag_name , tag_n) == 0) {
+                    fprintf(help , "%d\n" , commit_id);
+                    found_username();
+                    fprintf(help , "%s\n" , username);
+                    stat("./config/temp_tags.txt" , &attrib);
+                    char helpi[100];
+                    strftime(helpi , 100 , "%d/%m/%Y %H:%M:%S" , localtime(&attrib.st_ctime));
+                    fprintf(help , "%s\n" , helpi);
+                    fprintf(help , "%s\n" , tag_massage);
+                    fprintf(help , "%d\n" , writable);
+                    fprintf(help , "--------------------\n");
+                }
+                else {
+                    fprintf(help , "%d\n" , check_id);
+                    fputs(tag_username , help);
+                    fputs(tag_date , help);
+                    fputs(tag_mass , help);
+                    fprintf(help , "%d\n" , write);
+                    fprintf(help , "--------------------\n");
+                }
+            }
+            fclose(file);
+            fclose(help);
+            file = fopen("./config/tags.txt", "w");
+            help = fopen("./config/temp_tags.txt", "r");
+            while(1) {
+                fgets(tag_name , 100 , help);
+                fscanf(help , "%d\n" , &commit_id);
+                fgets(tag_username , 100 , help);
+                fgets(tag_date , 100 , help);
+                fgets(tag_mass , 100 , help);
+                fscanf(help , "%d\n" , &write);
+                fgets(line , 30 , help);
+                if(feof(help)) break;
+                fputs(tag_name , file);
+                fprintf(file , "%d\n" , commit_id);
+                fputs(tag_username , file);
+                fputs(tag_date , file);
+                fputs(tag_mass , file);
+                fprintf(file , "%d\n" , writable);
+                fprintf(file , "--------------------\n");
+            }
+            fclose(file);
+            fclose(help);
+            remove("./config/temp_tags.txt");
+            chdir(work_dir);
+        }
+    }
+    if(x == 0) {
+        chdir(gitche);
+        FILE* file = fopen("./config/tag-names.txt", "a");
+        fprintf(file , "%s\n" , tag_n);
+        fclose(file);
+        file = fopen("./config/tags.txt", "a");
+        fprintf(file , "%s\n" , tag_n);
+        fprintf(file , "%d\n" , commit_id);
+        found_username();
+        fprintf(file , "%s\n" , username);
+        FILE* help = fopen("./config/for-time.txt", "w");
+        stat("./config/for-time.txt" , &attrib);
+        char helpi[100];
+        strftime(helpi , 100 , "%d/%m/%Y %H:%M:%S" , localtime(&attrib.st_ctime));
+        fprintf(file , "%s\n" , helpi);
+        fclose(help);
+        remove("./config/for-time.txt");
+        fprintf(file , "%s\n" , tag_massage);
+        fprintf(file , "%d\n" , writable);
+        fprintf(file , "--------------------\n");
+        fclose(file);
+        chdir(work_dir);
+    }
+    return 0;
+}
+
+int find_tag_info(char* tag , int* a , int* b) {
+    char work_dir[2000];
+    getcwd(work_dir , 2000);
+    chdir(gitche);
+    FILE* file = fopen("./config/tags.txt", "r");
+    int commit_id;
+    int writable;
+    char line[30];
+    int ok = 0;
+    while(1) {
+        fgets(tag_name , 100 , file);
+        fscanf(file , "%d\n" , &commit_id);
+        fgets(tag_username , 100 , file);
+        fgets(tag_date , 100 , file);
+        fgets(tag_mass , 100 , file);
+        fscanf(file , "%d\n" , &writable);
+        fgets(line , 30 , file);
+        if(feof(file)) break;
+        tag_name[strlen(tag_name)-1] = '\0';
+        tag_username[strlen(tag_username)-1] = '\0';
+        tag_date[strlen(tag_date)-1] = '\0';
+        tag_mass[strlen(tag_mass)-1] = '\0';
+        if(strcmp(tag_name , tag) == 0) {
+            ok = 1;
+            break;
+        }
+    }
+    fclose(file);
+    chdir(work_dir);
+    if(ok == 0) return 0;
+    if(ok == 1) {
+        *a = commit_id;
+        *b = writable;
+        return 1;
+    }
+}
+
+void left_shift(char* a , int first , int size , int bit) {
+    for(int i=first ; i<=size ; i++) {
+        a[i - bit] = a[i];
+    }
+}
+
+void sort(char* a) {
+        for(int i = 0 ; i<strlen(a) ; i++) {
+            if(a[i] == '\t') a[i] = ' ';
+            if(a[i] == '\n') a[i] = ' ';
+        }
+        int pointer = 0;
+        while(pointer < strlen(a)) {
+            if((a[pointer] == ' ') && (pointer == 0)) {
+                left_shift(a , pointer+1 , strlen(a) , 1);
+            }
+            else if((a[pointer] == ' ') && (a[pointer + 1] == ' ')) {
+                left_shift(a , pointer+1 , strlen(a) , 1);
+            }
+            else if((a[pointer] == ' ') && (pointer == strlen(a)-1)) {
+                left_shift(a , strlen(a) , strlen(a) , 1);
+            }
+            else pointer ++;
+        }
+}
+
+int file_line(char* address) {
+    find_path(address);
+    int r = 0;
+    char line[1000];
+    FILE* file = fopen(real_path , "r");
+    while(feof(file) == 0) {
+        fgets(line , 1000 , file);
+        r++;
+    }
+    return r;
+}
+
+int file_compare(char* r_address1 , char* r_address2 , int start1 , int finish1 , int start2 , int finish2) {
+    find_path(r_address1);
+    char address1[2000];
+    strcpy(address1 , real_path);
+    find_path(r_address2);
+    char address2[2000];
+    strcpy(address2 , real_path);
+    FILE* file1 = fopen(address1 , "r");
+    FILE* help1 = fopen("./help1.txt" , "w");
+    int line = 1;
+    char line_c[1000];
+    while(feof(file1) == 0) {
+        fgets(line_c , 1000 , file1);
+        if((line >= start1) && (line <= finish1)) fprintf(help1 , "%s" , line_c);
+        line++;
+        strcpy(line_c , "");
+    }
+    fclose(file1);
+    fclose(help1);
+    FILE* file2 = fopen(address2 , "r");
+    FILE* help2 = fopen("./help2.txt" , "w");
+    line = 1;
+    while(feof(file2) == 0) {
+        fgets(line_c , 1000 , file2);
+        if((line >= start2) && (line <= finish2)) fprintf(help2 , "%s" , line_c);
+        line++;
+        strcpy(line_c , "");
+    }
+    fclose(file2);
+    fclose(help2);
+    help1 = fopen("./help1.txt" , "r");
+    help2 = fopen("./help2.txt" , "r");
+    char line1[1000];
+    char line2[1000];
+    char save1[1000];
+    char save2[1000];
+    int l1 = 0 , l2 = 0;
+    while((feof(help1) == 0) && (feof(help2) == 0)) {
+        fgets(line1 , 1000 , help1);
+        if(feof(help2) && (line1[strlen(line1)-1] == '\n')) break;
+        strcpy(save1 , line1);
+        sort(line1);
+        if(strcmp(line1 , "") == 0) {
+            l1++;
+            continue;
+        }
+        else {
+            while(feof(help2) == 0) {
+                fgets(line2 , 1000 , help2);
+                if(feof(help2) && (line2[strlen(line2)-1] == '\n')) break;
+                strcpy(save2 , line2);
+                sort(line2);
+                if(strcmp(line2 , "") != 0) {
+                    if(strcmp(line1 , line2) != 0) {
+                        printf("-------------------------\n");
+                        printf("\033[34m%s\033[0m - \033[34m%d\n\033[0m", r_address1 , l1 + start1);
+                        printf("\033[34m%s\n\033[0m", save1);
+                        printf("\033[31m%s\033[0m - \033[31m%d\n\033[0m", r_address2 , l2 + start2);
+                        printf("\033[31m%s\033[0m", save2);
+                        printf("-------------------------\n");
+                    }
+                    l2++;
+                    break;
+                }
+                else l2++;
+            }
+            l1++;
+        }
+    }
+    fclose(help1);
+    fclose(help2);
+    remove("./help1.txt");
+    remove("./help2.txt");
+    return 1;
+}
+
 int main(int argc , char* argv[]) {
     if(argc == 1) {
         printf("\033[33mplease enter a valid command!\033[0m");
         return 1;
     }
-    else if(strcmp(argv[1] , "config") == 0) {
+    else if(strcmp(argv[1] , "init") == 0) {
+        run_init();
+        return 0;
+    }
+    int x = found_gitche();
+    if(x == 0) {
+        printf("\033[31mYou have to initialize first!\033[0m");
+        return 1;
+    }
+    found_branch();
+    if(strcmp(argv[1] , "config") == 0) {
         int x = found_gitche();
         if(x == 0) {
             printf("\033[31mYou have to initialize first!\033[0m");
@@ -939,10 +1228,6 @@ int main(int argc , char* argv[]) {
             return 0;
         }
         run_config(argc , argv);
-        return 0;
-    }
-    else if(strcmp(argv[1] , "init") == 0) {
-        run_init();
         return 0;
     }
     else if(strcmp(argv[1] , "add") == 0) {
@@ -1516,6 +1801,215 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "checkout") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "revert") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "tag") == 0) {
+        char work_dir[2000];
+        getcwd(work_dir , 2000);
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        else {
+            if(argc == 2) {
+                char tag[100][100];
+                int num_tag = 0;
+                chdir(gitche);
+                FILE* file = fopen("./config/tag-names.txt", "r");
+                if(file == NULL) printf("\033[33mthere are no tags!\033[0m");
+                else {
+                    char tag_namee[100];
+                    while(1) {
+                        fgets(tag_namee , 100 , file);
+                        if(feof(file)) break;
+                        tag_namee[strlen(tag_namee)-1] = '\0';
+                        strcpy(tag[num_tag] , tag_namee);
+                        num_tag++;
+                    }
+                    for(int i=0 ; i<num_tag-1 ; i++) {
+                        for(int j=i ; j<num_tag ; j++) {
+                            if(strcmp(tag[i] , tag[j]) > 0) {
+                                char temp[100];
+                                strcpy(temp , tag[i]);
+                                strcpy(tag[i] , tag[j]);
+                                strcpy(tag[j] , temp);
+                            }
+                        }
+                    }
+                    for(int i=0 ; i<num_tag ; i++) {
+                       printf("\033[36m%s\033[0m\n", tag[i]);
+                    }
+                }
+                fclose(file);
+                chdir(work_dir);
+            }
+            else if(argc == 4) {
+                if(strcmp(argv[2] , "-a") == 0) {
+                    int last_commit_id = found_last_commit();
+                    run_tag(argv[3] , "" , last_commit_id , 0);
+                }
+                else if(strcmp(argv[2] , "show") == 0) {
+                    int comm_id;
+                    int write;
+                    int x = find_tag_info(argv[3] , &comm_id , &write);
+                    if(x == 1) {
+                        printf("     \033[35mtag: \033[36m%s\n", tag_name);
+                        printf("  \033[35mcommit: \033[36m%d\n", comm_id);
+                        printf("  \033[35mAuthor: \033[36m%s\n", tag_username);
+                        printf("    \033[35mDate: \033[36m%s\n", tag_date);
+                        printf(" \033[35mMassage: \033[36m%s\n", tag_mass);
+                    }
+                    else printf("\033[33mtag does not exist!\033[0m");
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+                return 0;
+            }
+            else if(argc == 5) {
+                if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-f") == 0)) {
+                    int last_commit_id = found_last_commit();
+                    run_tag(argv[3] , "" , last_commit_id , 1);
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 6) {
+                if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-m") == 0)) {
+                    int last_commit_id = found_last_commit();
+                    run_tag(argv[3] , argv[5] , last_commit_id , 0);
+                }
+                else if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-c") == 0)) {
+                    int comm_id;
+                    sscanf(argv[5] , "%d" , &comm_id);
+                    run_tag(argv[3] , "" , comm_id , 0);
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 7) {
+                if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-m") == 0) && (strcmp(argv[6] , "-f") == 0)) {
+                    int last_commit_id = found_last_commit();
+                    run_tag(argv[3] , argv[5] , last_commit_id , 1);
+                }
+                else if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-c") == 0) && (strcmp(argv[6] , "-f") == 0)) {
+                    int comm_id;
+                    sscanf(argv[5] , "%d" , &comm_id);
+                    run_tag(argv[3] , "" , comm_id , 1);
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 8) {
+                if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-m") == 0) && (strcmp(argv[6] , "-c") == 0)) {
+                    int comm_id;
+                    sscanf(argv[7] , "%d" , &comm_id);
+                    run_tag(argv[3] , argv[5] , comm_id , 0); 
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 9) {
+                if((strcmp(argv[2] , "-a") == 0) && (strcmp(argv[4] , "-m") == 0) && (strcmp(argv[6] , "-c") == 0) && (strcmp(argv[8] , "-f") == 0)) {
+                    int comm_id;
+                    sscanf(argv[7] , "%d" , &comm_id);
+                    run_tag(argv[3] , argv[5] , comm_id , 1);                    
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else printf("\033[33mplease enter a valid command!\033[0m");
+            return 0;
+        }
+    }
+    else if(strcmp(argv[1] , "tree") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "stash") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "pre-commit") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "grep") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        printf("\033[31mthis command is not supported!\033[0m");
+        return 1;
+    }
+    else if(strcmp(argv[1] , "diff") == 0) {
+        int x = found_gitche();
+        if(x == 0) {
+            printf("\033[31mYou have to initialize first!\033[0m");
+            return 1;
+        }
+        else {
+            if(argc == 5) {
+                if(strcmp(argv[2] , "-f") == 0) {
+                    file_compare(argv[3] , argv[4] , 1 , file_line(argv[3]) , 1 , file_line(argv[4]));
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 7) {
+                if(strcmp(argv[2] , "-f") == 0) {
+                    if(strcmp(argv[5] , "-line1") == 0) {
+                        int s1 , f1;
+                        sscanf(argv[6] , "%d-%d" , &s1 , &f1);
+                        file_compare(argv[3] , argv[4] , s1 , f1 , 1 , file_line(argv[4]));
+                    }
+                    else if(strcmp(argv[5] , "-line2") == 0) {
+                        int s2 , f2;
+                        sscanf(argv[6] , "%d-%d" , &s2 , &f2);
+                        file_compare(argv[3] , argv[4] , 1 , file_line(argv[3]) , s2 , f2);
+                    }
+                    else printf("\033[33mplease enter a valid command!\033[0m");
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else if(argc == 9) {
+                if((strcmp(argv[2] , "-f") == 0) && (strcmp(argv[5] , "-line1") == 0) && (strcmp(argv[7] , "-line2") == 0)) {
+                    int s1 , s2 , f1 , f2;
+                    sscanf(argv[6] , "%d-%d" , &s1 , &f1);
+                    sscanf(argv[8] , "%d-%d" , &s2 , &f2);
+                    file_compare(argv[3] , argv[4] , s1 , f1 , s2 , f2);
+                }
+                else printf("\033[33mplease enter a valid command!\033[0m");
+            }
+            else printf("\033[33mplease enter a valid command!\033[0m");
+            return 0;
+        }
+    }
+    else if(strcmp(argv[1] , "merge") == 0) {
         int x = found_gitche();
         if(x == 0) {
             printf("\033[31mYou have to initialize first!\033[0m");
