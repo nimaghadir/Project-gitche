@@ -55,6 +55,7 @@ int run_status();
 int run_commit(char* massage);
 int find_in_commit(char* address , int comm_num);
 int found_commit_info(int commit_number);
+int working_tree_clean_check(int* clean);
 int run_checkout(char* comm_name);
 int find_full_path(char* fi_name);
 int run_tag(char* tag_name , char* tag_mass , int commit_id , int writable);
@@ -1020,8 +1021,173 @@ int found_commit_info(int commit_number) {
     return n;
 }
 
-int run_checkout(char* comm_name) {
+int working_tree_clean_check(int* clean) {
+    found_gitche();
+    char work_dir[2000];
+    getcwd(work_dir , sizeof(work_dir));
+    int last_commit = find_branch_head(branch);
+    DIR* dir = opendir(".");
+    struct dirent* file;
+    char file_path[2000];
+    while((file = readdir(dir)) != NULL) {
+        if(file->d_type != DT_DIR) {
+            sprintf(file_path , "%s\\%s" , work_dir , file->d_name);
+            int track;
+            int loc;
+            int x = status_specifier(file_path , &track , &loc);
+            if(last_commit == 0) {
+                *clean = 0;
+            }
+            else {
+                int y = find_in_commit(file_path , last_commit);
+                if(y == 0) {
+                    *clean = 0;
+                }
+                else {
+                    char commit_name[10];
+                    sprintf(commit_name , "%d" , last_commit);
+                    chdir(gitche);
+                    chdir(commit_name);
+                    last_modify(file_path);
+                    FILE* help = fopen("./information/status.txt", "r");
+                    char address_check[2000];
+                    while(1) {
+                        fgets(address_check , 2000 , help);
+                        address_check[strlen(address_check)-1] = '\0';
+                        if(feof(help)) break;
+                        if(strcmp(address_check , file_path) == 0) {
+                            fgets(last_add , 100 , help);
+                            last_add[strlen(last_add)-1] = '\0';
+                            break;
+                        }
+                    }
+                    fclose(help);
+                    if(strcmp(last_add , last_change) != 0) {
+                        return 0;
+                    }
+                }
+            }
+            chdir(work_dir);
+        }
+        else if(file->d_type == DT_DIR) {
+            if((strcmp(file->d_name , ".gitche") != 0) && (strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0)) {
+                chdir(file->d_name);
+                working_tree_clean_check(clean);
+                chdir("..");
+            }
+        }
+    }
+    closedir(dir);
+    chdir(gitche);
+    chdir(branch);
+    FILE* for_d = fopen("./status.txt", "r");
+    char address_check[2000];
+    char line[30];
+    while(1) {
+        fgets(address_check , 2000 , for_d);
+        fgets(last_add , 100 , for_d);
+        fgets(state , 5 , for_d);
+        fgets(line , 30 , for_d);
+        if(feof(for_d)) break;
+        address_check[strlen(address_check)-1] = '\0';
+        state[strlen(state)-1] = '\0';
+        char help[2000];
+        strcpy(help , address_check);
+        find_parent(help);
+        if(strcmp(parent_file , work_dir) == 0) {
+            FILE* help = fopen(address_check , "r");
+            if(help == NULL) {
+                *clean = 0;
+            }
+            fclose(help);
+        }
+    }
+    fclose(for_d);
+    chdir(work_dir);
+    return 1;
+}
 
+int run_checkout(char* comm_name) {
+    int clean;
+    working_tree_clean_check(&clean);
+    if(clean == 0) {
+        printf("\033[33mworking tree is not clean!\033[0m");
+        return 0;
+    }
+    else {
+        chdir(gitche);
+        chdir("..");
+        DIR* dir = opendir(".");
+        struct dirent* file;
+        while((file = readdir(dir)) != NULL) {
+            if(file->d_type == DT_DIR) {
+                if((strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0) && (strcmp(file->d_name , ".gitche") != 0)) {
+                    char command[2000];
+                    sprintf(command , "rmdir /Q /S %s" , file->d_name);
+                    system(command);
+                }
+            }
+            else {
+                remove(file->d_name);
+            }
+        }
+        closedir(dir);
+        chdir(gitche);
+        chdir(comm_name);
+        chdir("files");
+        dir = opendir(".");
+        while((file = readdir(dir)) != NULL) {
+            if(file->d_type != DT_DIR) {
+                FILE* help = fopen("../information/status.txt" , "r");
+                char addr[2000];
+                char la[100];
+                char status[5];
+                char line[30];
+                while(1) {
+                    fgets(addr , 2000 ,  help);
+                    fgets(la , 100 ,  help);
+                    fgets(status , 5 , help);
+                    fgets(line , 30 , help);
+                    if(feof(help)) break;
+                    addr[strlen(addr)-1] = '\0';
+                    find_parent(addr);
+                    if(strcmp(file->d_name , file_name) == 0) {
+                        strcpy(real_path , addr);
+                        break;
+                    }
+                }
+                fclose(help);
+                char helpi[2000];
+                strcpy(helpi , real_path);
+                char* token;
+                char folder[100][100];
+                int num = 0;
+                token = strtok(helpi , "\\");
+                strcpy(folder[num] , token);
+                num++;
+                while(1) {
+                    token = strtok(NULL , "\\");
+                    if(token == NULL) break;
+                    strcpy(folder[num] , token);
+                    num++;
+                }
+                chdir(folder[0]);
+                for(int i=1 ; i<num-1 ; i++) {
+                    mkdir(folder[i]);
+                    chdir(folder[i]);
+                }
+                char source[2000];
+                sprintf(source , "%s\\%s\\files\\%s" , gitche , comm_name , file->d_name);
+                char command[2000];
+                sprintf(command , "copy %S %s" , source , real_path);
+                system(command);
+            }
+        }
+        closedir(dir);
+        chdir(gitche);
+        FILE* help = fopen("./config/current-commit-id", "w");
+        fprintf(help , "%s" , comm_name);
+    }
 }
 
 int run_tag(char* tag_n , char* tag_massage , int commit_id , int writable) {
