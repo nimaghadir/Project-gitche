@@ -66,6 +66,7 @@ void sort(char* a);
 int file_line(char* address);
 int file_compare(char* address1 , char* adddress2 , int start1 , int finish1 , int start2 , int finish2);
 int run_grep(char* file_n , char* word , char* comm_name , int line_show);
+int run_pre_commit_list();
 
 
 void find_path(char* address) {
@@ -419,6 +420,8 @@ int run_init() {
         fclose(file);
         file = fopen("./aliases.txt", "w");
         fclose(file);
+        file = fopen("./hooks.txt", "w");
+        fclose(file);
         create_branch("master");
         chdir(gitche);
         chdir("master");
@@ -719,6 +722,7 @@ int run_status() {
             int track;
             int loc;
             int x = status_specifier(file_path , &track , &loc);
+            if(track == 0) printf("\033[36m%-15.15s\033[0m: \033[31m U\n", file->d_name);
             if(track == 1) {
                 if(last_commit == 0) {
                     if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-A\n", file->d_name);
@@ -1494,6 +1498,103 @@ int run_grep(char* file_p , char* word , char* comm_name , int line_show) {
     chdir(work_dir);
 }
 
+int run_pre_commit_list() {
+    char work_dir[2000];
+    getcwd(work_dir , 2000);
+    chdir(gitche);
+    chdir("config");
+    char hook[100];
+    FILE* file = fopen("hooks.txt" , "r");
+    while(1) {
+        fgets(hook , 100 , file);
+        if(feof(file)) break;
+        hook[strlen(hook)-1] = '\0';
+        printf("\033[36m%s\033[0m\n" , hook);
+    }
+    fclose(file);
+    chdir(work_dir);
+    return 1;
+}
+
+int run_add_hook(char* name) {
+    int ok = 0;
+    if(strcmp(name , "todo-check") == 0) ok = 1;
+    else if(strcmp(name , "eof-blank-space") == 0) ok = 1;
+    else if(strcmp(name , "format-check") == 0) ok = 1;
+    else if(strcmp(name , "balance-braces") == 0) ok = 1;
+    else if(strcmp(name , "indentation-check") == 0) ok = 1;
+    else if(strcmp(name , "static-error-check") == 0) ok = 1;
+    else if(strcmp(name , "file-size-check") == 0) ok = 1;
+    else if(strcmp(name , "character-limit") == 0) ok = 1;
+    else if(strcmp(name , "time-limit") == 0) ok = 1;
+    if(ok == 0) printf("\033[33mthe hook is not valid!\033[0m");
+    else {
+        char work_dir[2000];
+        getcwd(work_dir , 2000);
+        chdir(gitche);
+        chdir("config");
+        char hook[100];
+        int exist = 0;
+        FILE* file = fopen("hooks.txt" , "r");
+        while(1) {
+            fgets(hook , 100 , file);
+            if(feof(file)) break;
+            hook[strlen(hook)-1] = '\0';
+            if(strcmp(name , hook) == 0) {
+                exist = 1;
+                break;
+            }
+        }
+        fclose(file);
+        if(exist == 1) printf("\033[33mthe hook already exist!\033[0m");
+        else {
+            file = fopen("hooks.txt" , "a");
+            fprintf(file , "%s\n" , name);
+            fclose(file);
+        }
+        chdir(work_dir);
+    }
+    return 1;
+}
+
+int run_remove_hook(char* name) {
+    char work_dir[2000];
+    getcwd(work_dir , 2000);
+    chdir(gitche);
+    chdir("config");
+    char hook[100];
+    int exist = 0;
+    FILE* file = fopen("hooks.txt" , "r");
+    FILE* help = fopen("temp.txt" , "w");
+    while(1) {
+        fgets(hook , 100 , file);
+        if(feof(file)) break;
+        hook[strlen(hook)-1] = '\0';
+        if(strcmp(name , hook) == 0) {
+            exist = 1;
+            continue;
+        }
+        fprintf(help , "%s\n" , hook);
+    }
+    fclose(help);
+    fclose(file);
+    if(exist == 0) printf("\033[33mthe hook is not exist!\033[0m");
+    else {
+        file = fopen("hooks.txt" , "w");
+        help = fopen("temp.txt" , "r");
+        while(1) {
+            fgets(hook , 100 , help);
+            if(feof(help)) break;
+            fprintf(file , "%s" , hook);
+        }
+        fclose(help);
+        fclose(file);
+    }
+    remove("temp.txt");
+    chdir(work_dir);
+    return 1;
+}
+
 
 int main(int argc , char* argv[]) {
     if(argc == 1) {
@@ -1537,6 +1638,14 @@ int main(int argc , char* argv[]) {
             else if(strncmp(argv[n] , "gitche log" , 10) == 0) ok = 1;
             else if(strncmp(argv[n] , "gitche branch" , 13) == 0) ok = 1;
             else if(strncmp(argv[n] , "gitche checkout" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche revert" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche tag" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche tree" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche stash" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche pre-commit" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche grep" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche diff" , 15) == 0) ok = 1;
+            else if(strncmp(argv[n] , "gitche merge" , 15) == 0) ok = 1;
             else if(ok == 0) {
                 printf("\033[33mthe command is not valid!\033[0m");
                 return 1;
@@ -1737,17 +1846,22 @@ int main(int argc , char* argv[]) {
         }
     }
     else if(strcmp(argv[1] , "status") == 0) {
-        char work_dir[2000];
-        getcwd(work_dir , 2000);
-        chdir(gitche);
-        chdir("..");
-        run_status();
+        int current = find_current_commit();
+        int head = find_branch_head(branch);
+        if(current != head) printf("\033[33myou cant see status when you are not in HEAD!\033[0m");
+        else {
+            char work_dir[2000];
+            getcwd(work_dir , 2000);
+            chdir(gitche);
+            chdir("..");
+            run_status();
+        }
         return 0;
     }
     else if(strcmp(argv[1] , "commit") == 0) {
         int current = find_current_commit();
         int head = find_branch_head(branch);
-        if(current != head) printf("\033[33myou cant commit when you are not in head!\033[0m");
+        if(current != head) printf("\033[33myou cant commit when you are not in HEAD!\033[0m");
         else {
             if(argc != 4) printf("\033[33mthe command is not valid!\033[0m");
             else if(strcmp(argv[2] , "-m") == 0) {
@@ -2133,13 +2247,13 @@ int main(int argc , char* argv[]) {
                     fgets(name , 100 , file);
                     if(feof(file)) break;
                     name[strlen(name)-1] = '\0';
-                    if(strcmp(name , argv[2]) == 0) {
+                    if(strcmp(name , argv[3]) == 0) {
                         exist = 1;
                         break;
                     }
                 }
                 fclose(file);
-                if(exist == 0) printf("\033[0mbranch does not exist!\033[0m");
+                if(exist == 0) printf("\033[33mbranch does not exist!\033[0m");
                 else {
                     int x = find_branch_head(argv[3]);
                     char comm_name[10];
@@ -2152,7 +2266,7 @@ int main(int argc , char* argv[]) {
                     chdir(work_dir);
                 }
             }
-            if(strcmp(argv[2] , "-c") == 0) {
+            else if(strcmp(argv[2] , "-c") == 0) {
                 char work_dir[2000];
                 getcwd(work_dir , 2000);
                 int comm_num;
@@ -2311,13 +2425,42 @@ int main(int argc , char* argv[]) {
         return 1;
     }
     else if(strcmp(argv[1] , "pre-commit") == 0) {
-        int x = found_gitche();
-        if(x == 0) {
-            printf("\033[31mYou have to initialize first!\033[0m");
-            return 1;
+        if(argc == 2) {
+            printf("\033[31mthis command is not supported!\033[0m");
         }
-        printf("\033[31mthis command is not supported!\033[0m");
-        return 1;
+        else if(argc == 3) {
+            if(strcmp(argv[2] , "-u") == 0) printf("\033[31mthis command is not supported!\033[0m");
+            else printf("\033[33mplease enter a valid command!\033[0m");
+        }
+        else if(argc == 4) {
+            if((strcmp(argv[2] , "hooks") == 0) && (strcmp(argv[3] , "list") == 0)) {
+                printf("\033[36mtodo-check\033[0m\n");
+                printf("\033[36meof-blank-space\033[0m\n");
+                printf("\033[36mformat-check\033[0m\n");
+                printf("\033[36mbalance-braces\033[0m\n");
+                printf("\033[36mindentation-check\033[0m\n");
+                printf("\033[36mstatic-error-check\033[0m\n");
+                printf("\033[36mfile-size-check\033[0m\n");
+                printf("\033[36mcharacter-limit\033[0m\n");
+                printf("\033[36mtime-limit\033[0m\n");
+            }
+            else if((strcmp(argv[2] , "applied") == 0) && (strcmp(argv[3] , "hooks") == 0)) {
+                run_pre_commit_list();
+            }
+            else printf("\033[33mplease enter a valid command!\033[0m");
+        }
+        else if(argc == 5) {
+            if((strcmp(argv[2] , "add") == 0) && (strcmp(argv[3] , "hook") == 0)) {
+                run_add_hook(argv[4]);
+            }
+            else if((strcmp(argv[2] , "remove") == 0) && (strcmp(argv[3] , "hook") == 0)) {
+                run_remove_hook(argv[4]);
+            }
+            else if(strcmp(argv[2] , "-f") == 0) printf("\033[31mthis command is not supported!\033[0m");
+            else printf("\033[33mplease enter a valid command!\033[0m");
+        }
+        else printf("\033[33mplease enter a valid command!\033[0m");
+        return 0;
     }
     else if(strcmp(argv[1] , "grep") == 0) {
         if(argc == 6) {
@@ -2458,11 +2601,6 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "merge") == 0) {
-        int x = found_gitche();
-        if(x == 0) {
-            printf("\033[31mYou have to initialize first!\033[0m");
-            return 1;
-        }
         printf("\033[31mthis command is not supported!\033[0m");
         return 1;
     }
