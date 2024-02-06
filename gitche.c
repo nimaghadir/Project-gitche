@@ -1124,6 +1124,13 @@ int working_tree_clean_check(int* clean) {
         }
     }
     fclose(for_d);
+    chdir(gitche);
+    chdir("./staging-area");
+    dir = opendir(".");
+    while((file = readdir(dir)) != NULL) {
+        if(file->d_type != DT_DIR) *clean = 0;
+    }
+    closedir(dir);
     chdir(work_dir);
     return 1;
 }
@@ -1209,6 +1216,7 @@ int run_checkout(char* comm_name) {
         yoo = fopen("./config/current-commit-id.txt", "w");
         fprintf(yoo , "%s" , comm_name);
         fclose(yoo);
+        return 1;
     }
 }
 
@@ -1855,6 +1863,9 @@ int main(int argc , char* argv[]) {
             chdir(gitche);
             chdir("..");
             run_status();
+            int clean = 1;
+            working_tree_clean_check(&clean);
+            if(clean == 1) printf("\033[32mworking tree clean\033[0m");
         }
         return 0;
     }
@@ -2205,9 +2216,12 @@ int main(int argc , char* argv[]) {
             if(exist == 1) printf("\033[31m%s \033[0mhave already exist!\033[0m");
             else {
                 create_branch(argv[2]);
+                int comm_num = find_branch_head(branch);
+                char comm_name[10];
+                sprintf(comm_name , "%d" , comm_num);
                 char source[2000];
                 char destination[2000];
-                sprintf(source , "%s\\%s\\status.txt" , gitche , branch);
+                sprintf(source , "%s\\%s\\information\\status.txt" , gitche , comm_name);
                 sprintf(destination , "%s\\%s\\status.txt" , gitche , argv[2]);
                 char command[4000];
                 sprintf(command , "copy %s %s" , source , destination);
@@ -2267,11 +2281,13 @@ int main(int argc , char* argv[]) {
                     int x = find_branch_head(argv[3]);
                     char comm_name[10];
                     sprintf(comm_name , "%d" , x);
-                    run_checkout(comm_name);
-                    chdir(gitche);
-                    file = fopen("./config/branch.txt", "w");
-                    fprintf(file , "%s" , argv[3]);
-                    fclose(file);
+                    int y = run_checkout(comm_name);
+                    if(y == 1) {
+                        chdir(gitche);
+                        file = fopen("./config/branch.txt", "w");
+                        fprintf(file , "%s" , argv[3]);
+                        fclose(file);
+                    }
                     chdir(work_dir);
                 }
             }
@@ -2281,11 +2297,13 @@ int main(int argc , char* argv[]) {
                 int comm_num;
                 sscanf(argv[3] , "%d" , &comm_num);
                 found_commit_info(comm_num);
-                run_checkout(argv[3]);
-                chdir(gitche);
-                FILE* file = fopen("./config/branch.txt", "w");
-                fprintf(file , "%s" , commit_branch);
-                fclose(file);
+                int y = run_checkout(argv[3]);
+                if(y == 1) {
+                    chdir(gitche);
+                    FILE* file = fopen("./config/branch.txt", "w");
+                    fprintf(file , "%s" , commit_branch);
+                    fclose(file);
+                }
                 chdir(work_dir);
             }
             else printf("\033[33mplease enter a valid command!\033[0m");
