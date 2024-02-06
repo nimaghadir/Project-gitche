@@ -2203,7 +2203,16 @@ int main(int argc , char* argv[]) {
             }
             fclose(file);
             if(exist == 1) printf("\033[31m%s \033[0mhave already exist!\033[0m");
-            else create_branch(argv[2]);
+            else {
+                create_branch(argv[2]);
+                char source[2000];
+                char destination[2000];
+                sprintf(source , "%s\\%s\\status.txt" , gitche , branch);
+                sprintf(destination , "%s\\%s\\status.txt" , gitche , argv[2]);
+                char command[4000];
+                sprintf(command , "copy %s %s" , source , destination);
+                system(command);
+            }
         }
         else if(argc == 2) {
             FILE* file = fopen("./config/branch-names.txt", "r");
