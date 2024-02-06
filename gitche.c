@@ -38,6 +38,7 @@ void found_username();
 void found_email();
 int found_last_commit();
 int find_branch_head(char* name);
+int find_current_commit();
 int date_compare(char* date1 , char* date2);
 int run_config(int length , char* word[]);
 int run_alias(int length , char* word[]);
@@ -199,6 +200,19 @@ int find_branch_head(char* name) {
     fclose(file);
     chdir(work_dir);
     return head;
+}
+
+int find_current_commit() {
+    int curr_commit_id = 0;
+    char work_dir[2000];
+    getcwd(work_dir , sizeof(work_dir));
+    chdir(gitche);
+    FILE* file = fopen("./config/current-commit-id.txt", "r");
+    char help[10];
+    fscanf(file , "%d" , &curr_commit_id);
+    fclose(file);
+    chdir(work_dir);
+    return curr_commit_id;     
 }
 
 int date_compare(char* date1 , char* date2) {
@@ -705,42 +719,44 @@ int run_status() {
             int track;
             int loc;
             int x = status_specifier(file_path , &track , &loc);
-            if(last_commit == 0) {
-                if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-A\n", file->d_name);
-                if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+A\n", file->d_name);
-            }
-            else {
-                int y = find_in_commit(file_path , last_commit);
-                if(y == 0) {
+            if(track == 1) {
+                if(last_commit == 0) {
                     if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-A\n", file->d_name);
                     if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+A\n", file->d_name);
                 }
                 else {
-                    char commit_name[10];
-                    sprintf(commit_name , "%d" , last_commit);
-                    chdir(gitche);
-                    chdir(commit_name);
-                    last_modify(file_path);
-                    FILE* help = fopen("./information/status.txt", "r");
-                    char address_check[2000];
-                    while(1) {
-                        fgets(address_check , 2000 , help);
-                        address_check[strlen(address_check)-1] = '\0';
-                        if(feof(help)) break;
-                        if(strcmp(address_check , file_path) == 0) {
-                            fgets(last_add , 100 , help);
-                            last_add[strlen(last_add)-1] = '\0';
-                            break;
+                    int y = find_in_commit(file_path , last_commit);
+                    if(y == 0) {
+                        if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-A\n", file->d_name);
+                        if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+A\n", file->d_name);
+                    }
+                    else {
+                        char commit_name[10];
+                        sprintf(commit_name , "%d" , last_commit);
+                        chdir(gitche);
+                        chdir(commit_name);
+                        last_modify(file_path);
+                        FILE* help = fopen("./information/status.txt", "r");
+                        char address_check[2000];
+                        while(1) {
+                            fgets(address_check , 2000 , help);
+                            address_check[strlen(address_check)-1] = '\0';
+                            if(feof(help)) break;
+                            if(strcmp(address_check , file_path) == 0) {
+                                fgets(last_add , 100 , help);
+                                last_add[strlen(last_add)-1] = '\0';
+                                break;
+                            }
+                        }
+                        fclose(help);
+                        if(strcmp(last_add , last_change) != 0) {
+                            if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-M\n", file->d_name);
+                            if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+M\n", file->d_name);
                         }
                     }
-                    fclose(help);
-                    if(strcmp(last_add , last_change) != 0) {
-                        if(x == 0) printf("\033[36m%-15.15s\033[0m: \033[31m-M\n", file->d_name);
-                        if(x == 1) printf("\033[36m%-15.15s\033[0m: \033[32m+M\n", file->d_name);
-                    }
                 }
+                chdir(work_dir);
             }
-            chdir(work_dir);
         }
         else if(file->d_type == DT_DIR) {
             if((strcmp(file->d_name , ".gitche") != 0) && (strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0)) {
@@ -1022,7 +1038,6 @@ int found_commit_info(int commit_number) {
 }
 
 int working_tree_clean_check(int* clean) {
-    found_gitche();
     char work_dir[2000];
     getcwd(work_dir , sizeof(work_dir));
     int last_commit = find_branch_head(branch);
@@ -1035,39 +1050,41 @@ int working_tree_clean_check(int* clean) {
             int track;
             int loc;
             int x = status_specifier(file_path , &track , &loc);
-            if(last_commit == 0) {
-                *clean = 0;
-            }
-            else {
-                int y = find_in_commit(file_path , last_commit);
-                if(y == 0) {
+            if(track == 1) {
+                if(last_commit == 0) {
                     *clean = 0;
                 }
                 else {
-                    char commit_name[10];
-                    sprintf(commit_name , "%d" , last_commit);
-                    chdir(gitche);
-                    chdir(commit_name);
-                    last_modify(file_path);
-                    FILE* help = fopen("./information/status.txt", "r");
-                    char address_check[2000];
-                    while(1) {
-                        fgets(address_check , 2000 , help);
-                        address_check[strlen(address_check)-1] = '\0';
-                        if(feof(help)) break;
-                        if(strcmp(address_check , file_path) == 0) {
-                            fgets(last_add , 100 , help);
-                            last_add[strlen(last_add)-1] = '\0';
-                            break;
+                    int y = find_in_commit(file_path , last_commit);
+                    if(y == 0) {
+                        *clean = 0;
+                    }
+                    else {
+                        char commit_name[10];
+                        sprintf(commit_name , "%d" , last_commit);
+                        chdir(gitche);
+                        chdir(commit_name);
+                        last_modify(file_path);
+                        FILE* help = fopen("./information/status.txt", "r");
+                        char address_check[2000];
+                        while(1) {
+                            fgets(address_check , 2000 , help);
+                            address_check[strlen(address_check)-1] = '\0';
+                            if(feof(help)) break;
+                            if(strcmp(address_check , file_path) == 0) {
+                                fgets(last_add , 100 , help);
+                                last_add[strlen(last_add)-1] = '\0';
+                                break;
+                            }
+                        }
+                        fclose(help);
+                        if(strcmp(last_add , last_change) != 0) {
+                            *clean = 0;
                         }
                     }
-                    fclose(help);
-                    if(strcmp(last_add , last_change) != 0) {
-                        return 0;
-                    }
                 }
+                chdir(work_dir);
             }
-            chdir(work_dir);
         }
         else if(file->d_type == DT_DIR) {
             if((strcmp(file->d_name , ".gitche") != 0) && (strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0)) {
@@ -1096,7 +1113,7 @@ int working_tree_clean_check(int* clean) {
         find_parent(help);
         if(strcmp(parent_file , work_dir) == 0) {
             FILE* help = fopen(address_check , "r");
-            if(help == NULL) {
+            if((help == NULL) && (strcmp(state , "dd") != 0)) {
                 *clean = 0;
             }
             fclose(help);
@@ -1108,27 +1125,46 @@ int working_tree_clean_check(int* clean) {
 }
 
 int run_checkout(char* comm_name) {
-    int clean;
+    int clean = 1;
     working_tree_clean_check(&clean);
-    if(clean == 0) {
+    int current = find_current_commit();
+    int head = find_branch_head(branch);
+    if((clean == 0) && (current == head)) {
         printf("\033[33mworking tree is not clean!\033[0m");
         return 0;
     }
     else {
         chdir(gitche);
-        chdir("..");
+        FILE* yoo = fopen("./config/current-commit-id.txt", "r");
+        char comm_now[10];
+        fscanf(yoo , "%s" , comm_now);
+        fclose(yoo);
+        chdir(comm_now);
+        chdir("files");
         DIR* dir = opendir(".");
         struct dirent* file;
         while((file = readdir(dir)) != NULL) {
-            if(file->d_type == DT_DIR) {
-                if((strcmp(file->d_name , ".") != 0) && (strcmp(file->d_name , "..") != 0) && (strcmp(file->d_name , ".gitche") != 0)) {
-                    char command[2000];
-                    sprintf(command , "rmdir /Q /S %s" , file->d_name);
-                    system(command);
+            if(file->d_type != DT_DIR) {
+                FILE* help = fopen("../information/status.txt" , "r");
+                char addr[2000];
+                char la[100];
+                char status[5];
+                char line[30];
+                while(1) {
+                    fgets(addr , 2000 ,  help);
+                    fgets(la , 100 ,  help);
+                    fgets(status , 5 , help);
+                    fgets(line , 30 , help);
+                    if(feof(help)) break;
+                    addr[strlen(addr)-1] = '\0';
+                    find_parent(addr);
+                    if(strcmp(file->d_name , file_name) == 0) {
+                        strcpy(real_path , addr);
+                        break;
+                    }
                 }
-            }
-            else {
-                remove(file->d_name);
+                fclose(help);
+                remove(real_path);
             }
         }
         closedir(dir);
@@ -1157,36 +1193,18 @@ int run_checkout(char* comm_name) {
                     }
                 }
                 fclose(help);
-                char helpi[2000];
-                strcpy(helpi , real_path);
-                char* token;
-                char folder[100][100];
-                int num = 0;
-                token = strtok(helpi , "\\");
-                strcpy(folder[num] , token);
-                num++;
-                while(1) {
-                    token = strtok(NULL , "\\");
-                    if(token == NULL) break;
-                    strcpy(folder[num] , token);
-                    num++;
-                }
-                chdir(folder[0]);
-                for(int i=1 ; i<num-1 ; i++) {
-                    mkdir(folder[i]);
-                    chdir(folder[i]);
-                }
                 char source[2000];
                 sprintf(source , "%s\\%s\\files\\%s" , gitche , comm_name , file->d_name);
                 char command[2000];
-                sprintf(command , "copy %S %s" , source , real_path);
+                sprintf(command , "copy %s %s" , source , real_path);
                 system(command);
             }
         }
         closedir(dir);
         chdir(gitche);
-        FILE* help = fopen("./config/current-commit-id", "w");
-        fprintf(help , "%s" , comm_name);
+        yoo = fopen("./config/current-commit-id.txt", "w");
+        fprintf(yoo , "%s" , comm_name);
+        fclose(yoo);
     }
 }
 
@@ -1459,10 +1477,12 @@ int run_grep(char* file_p , char* word , char* comm_name , int line_show) {
         if(feof(file) && (line[strlen(line)-1] == '\n')) strcpy(line , "");
         if(strstr(line , word) != NULL) {
             if(line_show == 0) {
+                if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0';
                 printf("\033[36m%s\n\033[0m", line);
                 printf("--------------------\n");
             }
             else if(line_show == 1) {
+                if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0';
                 printf("line: \033[35m%d\033[0m\n", l);
                 printf("\033[36m%s\n\033[0m", line);
                 printf("--------------------\n");
@@ -1725,44 +1745,49 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "commit") == 0) {
-        if(argc != 4) printf("\033[33mthe command is not valid!\033[0m");
-        else if(strcmp(argv[2] , "-m") == 0) {
-            if(strlen(argv[3]) > 72) printf("\033[33mthe massage is too long!\033[0m");
-            else {
-                run_commit(argv[3]);
-            }
-            return 0;
-        }
-        else if(strcmp(argv[2] , "-s") == 0) {
-            char work_dir[2000];
-            getcwd(work_dir , sizeof(work_dir));
-            found_gitche();
-            chdir(gitche);
-            FILE* file = fopen("./config/shortcuts.txt", "r");
-            char shortcut[100];
-            char sh_mass[100];
-            char line[30];
-            int ok = 0;
-            while(1) {
-                fgets(shortcut , 100 , file);
-                fgets(sh_mass , 100 , file);
-                fgets(line , 30 , file);
-                if(feof(file)) break;
-                shortcut[strlen(shortcut)-1] = '\0';
-                sh_mass[strlen(sh_mass)-1] = '\0';
-                if(strcmp(argv[3] , shortcut) == 0) {
-                    ok = 1;
-                    break;
-                }
-            }
-            fclose(file);
-            if(ok == 0) printf("\033[33mthe shortcut name does not exist!\033[0m");
-            else run_commit(sh_mass);
-            chdir(work_dir);
-        }
+        int current = find_current_commit();
+        int head = find_branch_head(branch);
+        if(current != head) printf("\033[33myou cant commit when you are not in head!\033[0m");
         else {
-            printf("\033[33mthe comand is not valid!\033[0m");
-            return 1;
+            if(argc != 4) printf("\033[33mthe command is not valid!\033[0m");
+            else if(strcmp(argv[2] , "-m") == 0) {
+                if(strlen(argv[3]) > 72) printf("\033[33mthe massage is too long!\033[0m");
+                else {
+                    run_commit(argv[3]);
+                }
+                return 0;
+            }
+            else if(strcmp(argv[2] , "-s") == 0) {
+                char work_dir[2000];
+                getcwd(work_dir , sizeof(work_dir));
+                found_gitche();
+                chdir(gitche);
+                FILE* file = fopen("./config/shortcuts.txt", "r");
+                char shortcut[100];
+                char sh_mass[100];
+                char line[30];
+                int ok = 0;
+                while(1) {
+                    fgets(shortcut , 100 , file);
+                    fgets(sh_mass , 100 , file);
+                    fgets(line , 30 , file);
+                    if(feof(file)) break;
+                    shortcut[strlen(shortcut)-1] = '\0';
+                    sh_mass[strlen(sh_mass)-1] = '\0';
+                    if(strcmp(argv[3] , shortcut) == 0) {
+                        ok = 1;
+                        break;
+                    }
+                }
+                fclose(file);
+                if(ok == 0) printf("\033[33mthe shortcut name does not exist!\033[0m");
+                else run_commit(sh_mass);
+                chdir(work_dir);
+            }
+            else {
+                printf("\033[33mthe comand is not valid!\033[0m");
+                return 1;
+            }
         }
     }
     else if(strcmp(argv[1] , "set") == 0) {
@@ -2046,12 +2071,6 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "branch") == 0) {
-        int x = found_gitche();
-        if(x == 0) {
-            printf("\033[31mYou have to initialize first!\033[0m");
-            return 1;
-        }
-        found_branch();
         char work_dir[2000];
         getcwd(work_dir , 2000);
         chdir(gitche);
@@ -2090,13 +2109,66 @@ int main(int argc , char* argv[]) {
         return 0;
     }
     else if(strcmp(argv[1] , "checkout") == 0) {
-        int x = found_gitche();
-        if(x == 0) {
-            printf("\033[31mYou have to initialize first!\033[0m");
-            return 1;
+        if(argc == 3) {
+            if(strcmp(argv[2] , "HEAD") == 0) {
+                char work_dir[2000];
+                getcwd(work_dir , 2000);
+                int x = find_branch_head(branch);
+                char comm_name[10];
+                sprintf(comm_name , "%d" , x);
+                run_checkout(comm_name);
+                chdir(work_dir);
+            }
+            else printf("\033[33mplease enter a valid command!\033[0m");
         }
-        printf("\033[31mthis command is not supported!\033[0m");
-        return 1;
+        else if(argc == 4) {
+            if(strcmp(argv[2] , "-b") == 0) {
+                char work_dir[2000];
+                getcwd(work_dir , 2000);
+                chdir(gitche);
+                FILE* file = fopen("./config/branch-names.txt", "r");
+                char name[100];
+                int exist = 0;
+                while(1) {
+                    fgets(name , 100 , file);
+                    if(feof(file)) break;
+                    name[strlen(name)-1] = '\0';
+                    if(strcmp(name , argv[2]) == 0) {
+                        exist = 1;
+                        break;
+                    }
+                }
+                fclose(file);
+                if(exist == 0) printf("\033[0mbranch does not exist!\033[0m");
+                else {
+                    int x = find_branch_head(argv[3]);
+                    char comm_name[10];
+                    sprintf(comm_name , "%d" , x);
+                    run_checkout(comm_name);
+                    chdir(gitche);
+                    file = fopen("./config/branch.txt", "w");
+                    fprintf(file , "%s" , argv[3]);
+                    fclose(file);
+                    chdir(work_dir);
+                }
+            }
+            if(strcmp(argv[2] , "-c") == 0) {
+                char work_dir[2000];
+                getcwd(work_dir , 2000);
+                int comm_num;
+                sscanf(argv[3] , "%d" , &comm_num);
+                found_commit_info(comm_num);
+                run_checkout(argv[3]);
+                chdir(gitche);
+                FILE* file = fopen("./config/branch.txt", "w");
+                fprintf(file , "%s" , commit_branch);
+                fclose(file);
+                chdir(work_dir);
+            }
+            else printf("\033[33mplease enter a valid command!\033[0m");
+        }
+        else printf("\033[33mplease enter a valid command!\033[0m");
+        return 0;
     }
     else if(strcmp(argv[1] , "revert") == 0) {
         int x = found_gitche();
